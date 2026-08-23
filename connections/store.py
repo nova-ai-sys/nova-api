@@ -213,41 +213,6 @@ async def list_connected_providers() -> List[str]:
     return [r[0] for r in rows]
 
 
-async def migrate_local_connections(target_user_id: str) -> int:
-    """Re-assign single-user connections to a real account.
-
-    Before per-user isolation, every connection was stored under
-    :data:`LOCAL_USER_ID`. Those rows are claimed by the configured
-    administrator rather than by whoever signs in first — otherwise the first
-    stranger to log in to a public deployment would inherit the operator's
-    mailbox.
-
-    Returns the number of rows moved.
-    """
-    if not target_user_id or target_user_id == LOCAL_USER_ID:
-        return 0
-
-    async with aiosqlite.connect(get_db_path()) as db:
-        # Skip any provider the target already connected on their own.
-        cursor = await db.execute(
-            """
-            UPDATE service_connections
-               SET user_id = ?
-             WHERE user_id = ?
-               AND provider NOT IN (
-                   SELECT provider FROM service_connections WHERE user_id = ?
-               )
-            """,
-            (target_user_id, LOCAL_USER_ID, target_user_id),
-        )
-        await db.commit()
-        moved = cursor.rowcount
-
-    if moved:
-        logger.info("migrated local connections to owner", count=moved)
-    return moved
-
-
 async def delete_connections_for_provider(provider: str) -> int:
     """Remove every user's connection to a provider.  Returns the row count.
 

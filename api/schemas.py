@@ -607,8 +607,6 @@ class ConnectionListResponse(BaseModel):
     """Connection state for every supported provider."""
 
     connections: List[ConnectionStatus] = Field(default_factory=list)
-    #: Whether the caller may register OAuth applications (operator action).
-    is_admin: bool = False
 
 
 class AuthorizeUrlResponse(BaseModel):

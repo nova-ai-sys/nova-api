@@ -28,10 +28,22 @@ def test_llm_num_ctx_defaults_above_ollama_minimum():
     Ollama defaults to 2048 tokens, which the system prompt plus the bound
     tool schemas exhaust on their own — the conversation history then gets
     silently dropped.
+
+    The floor is what matters, not the exact figure: pinning an exact value
+    made this test pass only on machines whose ``.env`` happened to set
+    ``NOVA_NUM_CTX``, and fail on every clean checkout once the default was
+    raised.
     """
-    from agent.llm import NUM_CTX
-    if not os.getenv("NOVA_NUM_CTX"):
-        assert NUM_CTX == 8192, f"Expected NUM_CTX=8192, got {NUM_CTX}"
+    from agent.llm import NUM_CTX, _DEFAULT_NUM_CTX
+
+    assert _DEFAULT_NUM_CTX >= 8192, (
+        f"the built-in default dropped to {_DEFAULT_NUM_CTX}; NOVA's own prompt "
+        "no longer fits"
+    )
+
+    override = os.getenv("NOVA_NUM_CTX")
+    expected = int(override) if override else _DEFAULT_NUM_CTX
+    assert NUM_CTX == expected, f"Expected NUM_CTX={expected}, got {NUM_CTX}"
 
 
 def test_build_ollama_kwargs_has_keep_alive():

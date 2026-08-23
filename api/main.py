@@ -46,19 +46,8 @@ async def lifespan(app: FastAPI):
     # ── Initialize external service connections ───────────────────
     try:
         from connections import init_connections_db
-        from connections.admin import owner_sub
-        from connections.store import migrate_local_connections
 
         await init_connections_db()
-
-        # Connections predating per-user isolation live under a shared "local"
-        # id. Hand them to the configured operator, never to whoever signs in
-        # first, so a public deployment cannot leak them to a stranger.
-        owner = owner_sub()
-        if owner:
-            moved = await migrate_local_connections(owner)
-            if moved:
-                logger.info("claimed pre-isolation connections", count=moved)
     except Exception as exc:
         logger.error("failed to initialize connections database", error=str(exc))
 

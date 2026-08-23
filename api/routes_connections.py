@@ -14,10 +14,9 @@ import html
 import json
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 
-from api.auth import AuthenticatedUser, get_optional_user
 from api.schemas import (
     AuthorizeUrlResponse,
     ConnectionListResponse,
@@ -26,7 +25,6 @@ from api.schemas import (
     ProviderCredentialsUpdate,
 )
 from connections import github_app
-from connections.admin import is_admin
 from connections.credentials import delete_credentials, get_credentials, save_credentials
 from connections.oauth import (
     OAuthError,
@@ -47,34 +45,6 @@ from connections.store import (
 logger = structlog.stdlib.get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/connections", tags=["connections"])
-
-
-def _user_id(user: AuthenticatedUser | None) -> str:
-    """Resolve the storage key for the caller.
-
-    Connections are per user: this is what keeps one account's mailbox out of
-    another's session. The desktop/dev setup runs without Cognito, so it falls
-    back to a single shared identity — acceptable there because only the
-    operator can reach the API, and never reached once users authenticate.
-    """
-    return user.sub if user and user.sub else LOCAL_USER_ID
-
-
-def _require_admin(user: AuthenticatedUser | None) -> None:
-    """Reject callers who may not register OAuth applications.
-
-    Hiding the setup wizard in the UI is a convenience; this is the check that
-    actually protects it.
-    """
-    if not is_admin(user.sub if user else None):
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "Only an administrator can register service applications. "
-                "Sign in to a connected service from the connections panel "
-                "instead."
-            ),
-        )
 
 
 # Copy for the pages the OAuth popup lands on.  These are rendered by the API
@@ -197,11 +167,9 @@ def _popup_result_page(title: str, message: str, ok: bool) -> HTMLResponse:
 
 
 @router.get("", response_model=ConnectionListResponse)
-async def list_service_connections(
-    user: AuthenticatedUser | None = Depends(get_optional_user),
-) -> ConnectionListResponse:
+async def list_service_connections() -> ConnectionListResponse:
     """Return the connection state of every supported provider."""
-    uid = _user_id(user)
+    uid = LOCAL_USER_ID
     statuses: list[ConnectionStatus] = []
 
     for provider in PROVIDERS.values():
@@ -226,24 +194,20 @@ async def list_service_connections(
             )
         )
 
-    return ConnectionListResponse(
-        connections=statuses,
-        is_admin=is_admin(user.sub if user else None),
-    )
+    return ConnectionListResponse(connections=statuses)
 
 
 @router.post("/{provider_id}/authorize", response_model=AuthorizeUrlResponse)
 async def authorize_provider(
     provider_id: str,
     lang: str = Query("en", description="UI language for the callback page"),
-    user: AuthenticatedUser | None = Depends(get_optional_user),
 ) -> AuthorizeUrlResponse:
     """Return the provider's authorization URL for the UI to open."""
     if get_provider(provider_id) is None:
         raise HTTPException(status_code=404, detail=f"Unknown provider: {provider_id}")
 
     try:
-        url, state = await build_authorize_url(provider_id, _user_id(user), lang)
+        url, state = await build_authorize_url(provider_id, LOCAL_USER_ID, lang)
     except OAuthError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -256,15 +220,12 @@ async def authorize_provider(
 async def set_provider_credentials(
     provider_id: str,
     body: ProviderCredentialsUpdate,
-    user: AuthenticatedUser | None = Depends(get_optional_user),
 ) -> dict:
     """Store the OAuth application credentials for a provider.
 
     Saved to the encrypted database rather than ``.env``, so they take effect
     immediately without restarting the API.
     """
-    _require_admin(user)
-
     provider = get_provider(provider_id)
     if provider is None:
         raise HTTPException(status_code=404, detail=f"Unknown provider: {provider_id}")
@@ -284,17 +245,12 @@ async def set_provider_credentials(
 
 
 @router.delete("/{provider_id}/credentials")
-async def clear_provider_credentials(
-    provider_id: str,
-    user: AuthenticatedUser | None = Depends(get_optional_user),
-) -> dict:
+async def clear_provider_credentials(provider_id: str) -> dict:
     """Forget the stored application credentials for a provider.
 
-    Every user's connection is dropped too: without the app credentials those
+    The stored connection is dropped too: without the app credentials those
     tokens can no longer be refreshed.
     """
-    _require_admin(user)
-
     provider = get_provider(provider_id)
     if provider is None:
         raise HTTPException(status_code=404, detail=f"Unknown provider: {provider_id}")
@@ -310,12 +266,9 @@ async def github_manifest(
     name: str = Query("NOVA Agent", description="App name shown on GitHub"),
     org: str | None = Query(None, description="Register under this organization"),
     lang: str = Query("en", description="UI language for the callback page"),
-    user: AuthenticatedUser | None = Depends(get_optional_user),
 ) -> GitHubManifestResponse:
     """Return the GitHub App manifest for the UI to submit as a form."""
-    _require_admin(user)
-
-    state = issue_state("github", _user_id(user), lang)
+    state = issue_state("github", LOCAL_USER_ID, lang)
     return GitHubManifestResponse(
         registration_url=github_app.registration_url(org),
         manifest=json.dumps(github_app.build_manifest(name)),
@@ -434,14 +387,11 @@ async def oauth_callback(
 
 
 @router.delete("/{provider_id}")
-async def disconnect_provider(
-    provider_id: str,
-    user: AuthenticatedUser | None = Depends(get_optional_user),
-) -> dict:
+async def disconnect_provider(provider_id: str) -> dict:
     """Remove the stored tokens for a provider."""
     if get_provider(provider_id) is None:
         raise HTTPException(status_code=404, detail=f"Unknown provider: {provider_id}")
 
-    deleted = await delete_connection(provider_id, _user_id(user))
+    deleted = await delete_connection(provider_id, LOCAL_USER_ID)
     await _rebind_service_tools()
     return {"provider": provider_id, "disconnected": deleted}

@@ -10,7 +10,7 @@ from typing import Any, Dict
 
 import httpx
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Query
+from fastapi import APIRouter, HTTPException, UploadFile, File, Query
 from fastapi.responses import StreamingResponse
 from langchain_core.callbacks import AsyncCallbackHandler
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
@@ -357,29 +357,6 @@ _sessions: Dict[str, Dict[str, Any]] = {}
 _STREAM_END = object()
 
 
-async def _optional_user(request: Request) -> object | None:
-    """Resolve the caller from the JWT, or None outside authenticated setups.
-
-    The ``Request`` annotation matters: without it FastAPI would treat the
-    parameter as a required query field and reject every call with a 422.
-    """
-    from api.auth import get_optional_user
-
-    return await get_optional_user(request)
-
-
-def _bind_request_identity(user) -> None:
-    """Record who this request acts for, so service tools use *their* tokens.
-
-    The graph runs in a background task; ``asyncio.create_task`` snapshots the
-    context, so setting the ContextVar here covers every tool call the task
-    makes.
-    """
-    from connections.context import set_current_user
-
-    set_current_user(getattr(user, "sub", None))
-
-
 def _sanitize_history(messages: list) -> list:
     """Drop tool calls that never got a result.
 
@@ -472,12 +449,8 @@ def _extract_response(state: Dict[str, Any]) -> ChatResponse:
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(
-    request: ChatRequest,
-    user=Depends(_optional_user),
-) -> ChatResponse:
+async def chat(request: ChatRequest) -> ChatResponse:
     """Send a message to the NOVA agent and get a response."""
-    _bind_request_identity(user)
     try:
         state = dict(_get_session(request.session_id))
         state["messages"] = _sanitize_history(state.get("messages", []))
@@ -838,7 +811,7 @@ async def _run_langgraph_task(
 
 
 @router.post("/chat/stream")
-async def chat_stream(request: ChatRequest, user=Depends(_optional_user)):
+async def chat_stream(request: ChatRequest):
     """Stream the agent response token-by-token via SSE.
 
     The LangGraph execution runs in a background asyncio task that writes
@@ -846,7 +819,6 @@ async def chat_stream(request: ChatRequest, user=Depends(_optional_user)):
     If the client disconnects, the background task continues to completion
     and persists the final state (T005).
     """
-    _bind_request_identity(user)
     session = _get_session(request.session_id)
 
     input_state = dict(session)

@@ -13,11 +13,10 @@ Public API
 - ``set_mcp_tools()``      – register external MCP tools at runtime and rebuild the graph.
 - ``reload_service_tools()`` – re-bind the Google/Microsoft/GitHub tools after
   a provider's OAuth application is registered or removed.
-- ``run_agent_once()``     – convenience async helper for the CLI.
-- ``run_agent_sync()``     – sync wrapper around ``run_agent_once``.
+- ``run_agent_once()``     – runs one single-agent turn; the scheduler's
+  entry point, and the orchestrator's fallback when the planner declines.
 """
 
-import asyncio
 import structlog
 from typing import Any, Dict, List
 
@@ -294,8 +293,3 @@ async def run_agent_once(
 
     result = await get_compiled_graph().ainvoke(input_state)
     return result
-
-
-def run_agent_sync(user_input: str, state: Dict[str, Any] | None = None) -> Dict[str, Any]:
-    """Synchronous wrapper around :func:`run_agent_once`."""
-    return asyncio.run(run_agent_once(user_input, state))

@@ -72,7 +72,7 @@ async def test_chat_endpoint_trivial_request_falls_back_unchanged(monkeypatch, t
     monkeypatch.setattr(orchestrator, "available_agents", agents)
     monkeypatch.setattr("agent.graph.get_compiled_graph", lambda: _StubFallbackGraph("4 o'clock"))
 
-    response = await routes.chat(ChatRequest(message="what time is it?", session_id="trivial"), user=None)
+    response = await routes.chat(ChatRequest(message="what time is it?", session_id="trivial"))
 
     assert response.response == "4 o'clock"
     # Nothing orchestrated: the session carries no plan for a reload to show.
