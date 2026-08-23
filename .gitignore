@@ -12,6 +12,8 @@ __pycache__/
 
 # Data & storage
 data/
+# Backups taken when moving an installation: same live tokens as data/.
+data.bak-*/
 
 # IDE
 .vscode/
@@ -24,9 +26,9 @@ Thumbs.db
 ui-screenshot-local.png
 
 # AI tools
+# CLAUDE.md and AGENTS.md are tracked on purpose: they are how anyone working
+# on this repository, human or agent, gets its context.
 .opencode/
 .specify/
 specs/
-AGENTS.md
-CLAUDE.md
 .claude/
