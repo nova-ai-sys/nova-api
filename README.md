@@ -54,30 +54,6 @@ open it in your browser. This API has no interface of its own.
 | `make mcp-microsoft` | Start the Outlook / Calendar / OneDrive server |
 | `make mcp-github` | Start the GitHub server |
 
-On Windows, `.\dev.ps1` starts the API in a new terminal.
-
-## Layout
-
-| Folder | What lives there |
-|--------|-----------------|
-| `agent/` | The agent loop, the orchestrator, state and LLM config |
-| `api/` | FastAPI app, routes, schemas, middleware |
-| `tools/` | The tools the agent can call |
-| `memory/` | Conversation memory, episodes and the RAG pipeline |
-| `scheduler/` | Scheduled automations |
-| `nova_mcp/` | MCP client and servers |
-| `nova_a2a/` | Multi-agent orchestration |
-| `connections/` | OAuth for Google, Microsoft and GitHub |
-
-## No login
-
-NOVA is single-user by design. It listens on your machine, so there are no
-accounts and no tokens. Credentials for connected services are encrypted at
-rest under a single local identity.
-
-If you expose this API beyond your own machine, put your own authentication in
-front of it — it has none.
-
 ## The rest of NOVA
 
 | Repository | What it is |
