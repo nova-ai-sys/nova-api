@@ -26,8 +26,7 @@ Thumbs.db
 ui-screenshot-local.png
 
 # AI tools
-# CLAUDE.md and AGENTS.md are tracked on purpose: they are how anyone working
-# on this repository, human or agent, gets its context.
+CLAUDE.md
 .opencode/
 .specify/
 specs/
