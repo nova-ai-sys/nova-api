@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/nova-ai-sys/nova-api/compare/nova-api-v0.10.0...nova-api-v0.10.1) (2026-08-25)
+
+
+### Features
+
+* updated README.md ([485785d](https://github.com/nova-ai-sys/nova-api/commit/485785d777a2edba0d7e3d9272ee305d2033c192))
+
 ## [0.10.0](https://github.com/nova-ai-sys/nova-api/compare/nova-api-v0.9.0...nova-api-v0.10.0) (2026-08-25)
 
 
